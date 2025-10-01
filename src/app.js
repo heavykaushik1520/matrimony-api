@@ -14,14 +14,15 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userAuthRoutes = require('./routes/userAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Centralized Middleware Configuration
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
+  
+  'http://localhost:8081',
   'https://artiststation.co.in'
 ];
 
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/user/auth', userAuthRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/contact', contactRoutes)
 
 app.get('/', (req, res) => {
   res.send('HridaySparshi');

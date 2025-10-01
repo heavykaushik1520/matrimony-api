@@ -45,6 +45,24 @@ const AstrologyInfo = sequelize.define(
       type: DataTypes.ENUM("Yes", "No", "Partial"),
       allowNull: false,
     },
+
+    nadis: {
+      type: DataTypes.ENUM("Aadi", "Madhya", "Antya"),
+      allowNull: false,
+    },
+
+    charan: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    nakshatra: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    gotra: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
   },
   {
     tableName: "astrologyInfo",

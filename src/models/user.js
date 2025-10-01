@@ -378,6 +378,34 @@ const User = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    membership_status: {
+      type: DataTypes.ENUM("pending", "active", "expired", "cancelled"),
+      defaultValue: "pending",
+      allowNull: false,
+      comment: "Current state of the user's paid membership.",
+    },
+    membership_expiry_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Date and time when paid access expires.",
+    },
+    membership_plan_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: "Human-readable name of the last purchased plan.",
+    },
+    razorpay_customer_id: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      unique: true,
+      comment: "Unique ID for the user in Razorpay.",
+    },
+    razorpay_subscription_id: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      unique: true,
+      comment: "Active subscription ID for the user.",
+    },
   },
 
   {

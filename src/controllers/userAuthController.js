@@ -34,6 +34,7 @@ async function generateUniquePersonalId() {
   return uniqueId;
 }
 
+// POST - sign up
 async function userSignup(req, res) {
   const {
     password,
@@ -162,6 +163,7 @@ async function userSignup(req, res) {
   }
 }
 
+// POST - Sign In
 async function signinUser(req, res) {
   const { email, password } = req.body;
 
@@ -193,10 +195,12 @@ async function signinUser(req, res) {
   }
 }
 
+// POST - Sign Out
 async function signoutUser(req, res) {
   res.status(200).json({ message: "Sign out successful!" });
 }
 
+// GET - Me (Self Account)
 async function getCurrentUser(req, res) {
   try {
     if (!req.user || !req.user.userId) {
@@ -249,6 +253,7 @@ async function refreshToken(req, res) {
   }
 }
 
+// forgot password - (need to check)
 async function forgotPassword(req, res) {
   const { email } = req.body;
 
@@ -295,6 +300,7 @@ async function forgotPassword(req, res) {
   }
 }
 
+// reset password - (need to check)
 async function resetPassword(req, res) {
   if (!req.body || !req.body.token || !req.body.newPassword) {
     return res
@@ -332,6 +338,7 @@ async function resetPassword(req, res) {
   }
 }
 
+// get list pagination 1 - 10 data
 async function getOppositeGenderUsers(req, res) {
   try {
     const page = parseInt(req.query.page, 10) || 1;
@@ -357,7 +364,7 @@ async function getOppositeGenderUsers(req, res) {
         gender: oppositeGender,
       },
       attributes: {
-        exclude: ["idProof","password", "reset_token", "reset_token_expires","termsAccepted"],
+        exclude: ["idProof","password", "reset_token", "reset_token_expires","termsAccepted","membership_status","membership_expiry_date","membership_plan_name","razorpay_customer_id","razorpay_subscription_id"],
       },
       include: [
         { model: AstrologyInfo },
@@ -384,6 +391,7 @@ async function getOppositeGenderUsers(req, res) {
   }
 }
 
+//filter pagination 1 - 10 data
 async function filterOppositeGenderUsers(req, res) {
     const currentUserId = req.user.userId; 
 
@@ -433,7 +441,7 @@ async function filterOppositeGenderUsers(req, res) {
             offset: parseInt(offset),
             
             attributes: {
-                exclude: ["idProof","password", "reset_token", "reset_token_expires","termsAccepted"],
+                exclude: ["idProof","password", "reset_token", "reset_token_expires","termsAccepted","membership_status","membership_expiry_date","membership_plan_name","razorpay_customer_id","razorpay_subscription_id"],
             },
             
             include: [
@@ -468,6 +476,61 @@ async function filterOppositeGenderUsers(req, res) {
     }
 }
 
+//GET - on the basis of personalId
+async function getUserByPersonalId(req , res) {
+  try 
+  {
+    const { personalId} = req.params;
+    if(!personalId){
+      return res.status(400).json({
+        success : "false",
+        message:"Personal Id Required."});
+    }
+
+    const user = await user.findOne({
+      where : {personalId},
+      attributes: {
+        exclude: [
+          "idProof",
+          "password",
+          "reset_token",
+          "reset_token_expires",
+          "termsAccepted",
+          "membership_status",
+          "membership_expiry_date",
+          "membership_plan_name",
+          "razorpay_customer_id",
+          "razorpay_subscription_id",
+        ],
+      },
+
+      include: [
+        { model: AstrologyInfo },
+        { model: FamilyInfo },
+        { model: UserCareerInfo },
+      ],
+      limit,
+      offset,
+    })
+
+  } catch (error){
+
+    console.error("Error fetching user:", err);
+
+    if (err.name === "SequelizeValidationError" || err.name === "SequelizeDatabaseError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request data",
+        error: err.message,
+      });
+    }
+
+     res
+      .status(500)
+      .json({ message: "Failed to fetch user.", error: error.message });
+  }
+}
+
 module.exports = {
   userSignup,
   signinUser,
@@ -477,5 +540,6 @@ module.exports = {
   refreshToken,
   forgotPassword,
   resetPassword,
-  filterOppositeGenderUsers
+  filterOppositeGenderUsers,
+  getUserByPersonalId
 };
