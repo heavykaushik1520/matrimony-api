@@ -13,8 +13,6 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
-
-
 async function generateUniquePersonalId() {
   const prefix = "HRDSPSH-";
   let uniqueId;
@@ -56,8 +54,11 @@ async function userSignup(req, res) {
     height,
     weight,
     bloodGroup,
+    bodyType,
     physicalDisability,
     skinTone,
+    drinkingHabits,
+    smokingHabits,
     hobbies,
     termsAccepted,
     astrologyInfo,
@@ -109,8 +110,11 @@ async function userSignup(req, res) {
         height,
         weight,
         bloodGroup,
+        bodyType,
         physicalDisability,
         skinTone,
+        drinkingHabits,
+        smokingHabits,
         profilePhotos: profilePhotoUrls,
         hobbies: hobbyArray,
         idProof: idProofPath,
@@ -287,7 +291,7 @@ async function forgotPassword(req, res) {
     });
 
     await transporter.sendMail({
-      from: `"Sunkots Support" <${process.env.SMTP_USER}>`,
+      from: `"Hridaysparshi Support" <${process.env.SMTP_USER}>`,
       to: email,
       subject: "Password Reset Request",
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 1 hour.</p>`,
@@ -364,7 +368,18 @@ async function getOppositeGenderUsers(req, res) {
         gender: oppositeGender,
       },
       attributes: {
-        exclude: ["idProof","password", "reset_token", "reset_token_expires","termsAccepted","membership_status","membership_expiry_date","membership_plan_name","razorpay_customer_id","razorpay_subscription_id"],
+        exclude: [
+          "idProof",
+          "password",
+          "reset_token",
+          "reset_token_expires",
+          "termsAccepted",
+          "membership_status",
+          "membership_expiry_date",
+          "membership_plan_name",
+          "razorpay_customer_id",
+          "razorpay_subscription_id",
+        ],
       },
       include: [
         { model: AstrologyInfo },
@@ -393,102 +408,124 @@ async function getOppositeGenderUsers(req, res) {
 
 //filter pagination 1 - 10 data
 async function filterOppositeGenderUsers(req, res) {
-    const currentUserId = req.user.userId; 
+  const currentUserId = req.user.userId;
 
-    const { 
-        religion, caste, community, maritalStatus, skinTone,
-        ras, gan, mangal,
-        education, jobSector, jobLocation, annualSalary,
-        limit = 10, page = 1 
-    } = req.query;
+  const {
+    religion,
+    caste,
+    community,
+    maritalStatus,
+    skinTone,
+    ras,
+    gan,
+    mangal,
+    education,
+    jobSector,
+    jobLocation,
+    annualSalary,
+    limit = 10,
+    page = 1,
+  } = req.query;
 
-    try {
-        const currentUser = await User.findByPk(currentUserId, { attributes: ["gender"] });
+  try {
+    const currentUser = await User.findByPk(currentUserId, {
+      attributes: ["gender"],
+    });
 
-        if (!currentUser) {
-            return res.status(404).json({ message: "Current user not found." });
-        }
-
-        const oppositeGender = currentUser.gender === "Male" ? "Female" : "Male";
-
-        const userWhere = {};
-        const astrologyWhere = {};
-        const careerWhere = {};
-
-        userWhere.id = { [Op.ne]: currentUserId };
-        userWhere.gender = oppositeGender;
-
-        if (religion) userWhere.religion = { [Op.like]: religion };
-        if (caste) userWhere.caste = { [Op.like]: caste };
-        if (community) userWhere.community = { [Op.like]: community };
-        if (maritalStatus) userWhere.maritalStatus = { [Op.like]: maritalStatus };
-        if (skinTone) userWhere.skinTone = { [Op.like]: skinTone };
-
-        if (ras) astrologyWhere.ras = { [Op.like]: ras };
-        if (gan) astrologyWhere.gan = { [Op.like]: gan };
-        if (mangal) astrologyWhere.mangal = { [Op.like]: mangal };
-
-        if (education) careerWhere.education = { [Op.like]: education };
-        if (jobSector) careerWhere.jobSector = { [Op.like]: jobSector };
-        if (jobLocation) careerWhere.jobLocation = { [Op.like]: jobLocation };
-        if (annualSalary) careerWhere.annualSalary = { [Op.gte]: annualSalary }; 
-        
-        const offset = (page - 1) * limit;
-
-        const results = await User.findAndCountAll({
-            where: userWhere, 
-            limit: parseInt(limit),
-            offset: parseInt(offset),
-            
-            attributes: {
-                exclude: ["idProof","password", "reset_token", "reset_token_expires","termsAccepted","membership_status","membership_expiry_date","membership_plan_name","razorpay_customer_id","razorpay_subscription_id"],
-            },
-            
-            include: [
-                {
-                    model: AstrologyInfo,
-                    required: Object.keys(astrologyWhere).length > 0,
-                    where: astrologyWhere
-                },
-                {
-                    model: UserCareerInfo,
-                    required: Object.keys(careerWhere).length > 0,
-                    where: careerWhere
-                },
-                { model: FamilyInfo } 
-            ]
-        });
-
-        res.status(200).json({
-            message: "Filtered opposite-gender results retrieved successfully.",
-            totalItems: results.count,
-            totalPages: Math.ceil(results.count / limit),
-            currentPage: parseInt(page),
-            users: results.rows
-        });
-
-    } catch (error) {
-        console.error("Error fetching filtered users:", error);
-        res.status(500).json({
-            message: "Failed to fetch filtered users.",
-            error: error.message,
-        });
+    if (!currentUser) {
+      return res.status(404).json({ message: "Current user not found." });
     }
+
+    const oppositeGender = currentUser.gender === "Male" ? "Female" : "Male";
+
+    const userWhere = {};
+    const astrologyWhere = {};
+    const careerWhere = {};
+
+    userWhere.id = { [Op.ne]: currentUserId };
+    userWhere.gender = oppositeGender;
+
+    if (religion) userWhere.religion = { [Op.like]: religion };
+    if (caste) userWhere.caste = { [Op.like]: caste };
+    if (community) userWhere.community = { [Op.like]: community };
+    if (maritalStatus) userWhere.maritalStatus = { [Op.like]: maritalStatus };
+    if (skinTone) userWhere.skinTone = { [Op.like]: skinTone };
+
+    if (ras) astrologyWhere.ras = { [Op.like]: ras };
+    if (gan) astrologyWhere.gan = { [Op.like]: gan };
+    if (mangal) astrologyWhere.mangal = { [Op.like]: mangal };
+
+    if (education) careerWhere.education = { [Op.like]: education };
+    if (jobSector) careerWhere.jobSector = { [Op.like]: jobSector };
+    if (jobLocation) careerWhere.jobLocation = { [Op.like]: jobLocation };
+    if (annualSalary) careerWhere.annualSalary = { [Op.gte]: annualSalary };
+
+    const offset = (page - 1) * limit;
+
+    const results = await User.findAndCountAll({
+      where: userWhere,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+
+      attributes: {
+        exclude: [
+          "idProof",
+          "password",
+          "reset_token",
+          "reset_token_expires",
+          "termsAccepted",
+          "membership_status",
+          "membership_expiry_date",
+          "membership_plan_name",
+          "razorpay_customer_id",
+          "razorpay_subscription_id",
+        ],
+      },
+
+      include: [
+        {
+          model: AstrologyInfo,
+          required: Object.keys(astrologyWhere).length > 0,
+          where: astrologyWhere,
+        },
+        {
+          model: UserCareerInfo,
+          required: Object.keys(careerWhere).length > 0,
+          where: careerWhere,
+        },
+        { model: FamilyInfo },
+      ],
+    });
+
+    res.status(200).json({
+      message: "Filtered opposite-gender results retrieved successfully.",
+      totalItems: results.count,
+      totalPages: Math.ceil(results.count / limit),
+      currentPage: parseInt(page),
+      users: results.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching filtered users:", error);
+    res.status(500).json({
+      message: "Failed to fetch filtered users.",
+      error: error.message,
+    });
+  }
 }
 
 //GET - on the basis of personalId
-async function getUserByPersonalId(req , res) {
-  try 
-  {
-    const { personalId} = req.params;
-    if(!personalId){
+async function getUserByPersonalId(req, res) {
+  try {
+    const { personalId } = req.params;
+    if (!personalId) {
       return res.status(400).json({
-        success : "false",
-        message:"Personal Id Required."});
+        success: "false",
+        message: "Personal Id Required.",
+      });
     }
 
     const user = await user.findOne({
-      where : {personalId},
+      where: { personalId },
       attributes: {
         exclude: [
           "idProof",
@@ -511,13 +548,14 @@ async function getUserByPersonalId(req , res) {
       ],
       limit,
       offset,
-    })
-
-  } catch (error){
-
+    });
+  } catch (error) {
     console.error("Error fetching user:", err);
 
-    if (err.name === "SequelizeValidationError" || err.name === "SequelizeDatabaseError") {
+    if (
+      err.name === "SequelizeValidationError" ||
+      err.name === "SequelizeDatabaseError"
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid request data",
@@ -525,9 +563,163 @@ async function getUserByPersonalId(req , res) {
       });
     }
 
-     res
+    res
       .status(500)
       .json({ message: "Failed to fetch user.", error: error.message });
+  }
+}
+
+async function updateUser(req, res) {
+  const userId = req.user.id;
+
+  const {
+    password, // Consider a separate endpoint for password change
+    firstname,
+    lastname,
+    gender,
+    religion,
+    caste,
+    subCaste,
+    community,
+    dateOfBirth,
+    timeOfBirth,
+    phone,
+    email,
+    knownLanguages,
+    diet,
+    birthLocation,
+    maritalStatus,
+    height,
+    weight,
+    bloodGroup,
+    physicalDisability,
+    skinTone,
+    hobbies,
+    termsAccepted,
+    // Fields for related models, expected as JSON strings
+    astrologyInfo,
+    familyInfo,
+    userCareerInfo,
+  } = req.body;
+
+  const t = await sequelize.transaction();
+
+  try {
+    // 1. Find the existing user
+    const user = await User.findByPk(userId, { transaction: t });
+    if (!user) {
+      await t.rollback();
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // --- Prepare Updates for the Main User Model ---
+
+    const userUpdateFields = {};
+
+    // Standard fields (only add to update object if they are present in the request)
+    // IMPORTANT: For security, DO NOT allow direct update of 'personalId' or 'id'.
+    // if (password !== undefined) userUpdateFields.password = password; // Hashing should happen in a Sequelize hook/setter
+    // if (firstname !== undefined) userUpdateFields.firstname = firstname;
+    // if (lastname !== undefined) userUpdateFields.lastname = lastname;
+    // if (gender !== undefined) userUpdateFields.gender = gender;
+    // if (religion !== undefined) userUpdateFields.religion = religion;
+    // if (caste !== undefined) userUpdateFields.caste = caste;
+    if (subCaste !== undefined) userUpdateFields.subCaste = subCaste;
+    // if (community !== undefined) userUpdateFields.community = community;
+    // if (dateOfBirth !== undefined) userUpdateFields.dateOfBirth = dateOfBirth;
+    // if (timeOfBirth !== undefined) userUpdateFields.timeOfBirth = timeOfBirth;
+    if (phone !== undefined) userUpdateFields.phone = phone;
+    if (email !== undefined) userUpdateFields.email = email;
+    if (knownLanguages !== undefined)
+      userUpdateFields.knownLanguages = knownLanguages;
+    if (diet !== undefined) userUpdateFields.diet = diet;
+    if (birthLocation !== undefined)
+      userUpdateFields.birthLocation = birthLocation;
+    if (maritalStatus !== undefined)
+      userUpdateFields.maritalStatus = maritalStatus;
+    if (height !== undefined) userUpdateFields.height = height;
+    if (weight !== undefined) userUpdateFields.weight = weight;
+    if (bloodGroup !== undefined) userUpdateFields.bloodGroup = bloodGroup;
+    if (physicalDisability !== undefined)
+      userUpdateFields.physicalDisability = physicalDisability;
+    if (skinTone !== undefined) userUpdateFields.skinTone = skinTone;
+    if (termsAccepted !== undefined)
+      userUpdateFields.termsAccepted = termsAccepted;
+
+    if (hobbies !== undefined) {
+      userUpdateFields.hobbies = hobbies.split(",").map((h) => h.trim());
+    }
+
+    // --- File Handling (Profile Photos and ID Proof) ---
+
+    // NOTE: This logic OVERWRITES existing paths. In a production app, you
+    // should implement logic to manage and optionally delete the old files from storage.
+    const profilePhotoFiles = req.files?.profilePhotos || [];
+    const idProofFile = req.files?.idProof ? req.files.idProof[0] : null;
+
+    if (profilePhotoFiles.length > 0) {
+      userUpdateFields.profilePhotos = profilePhotoFiles.map(
+        (file) => `http://localhost:3000/uploads/images/${file.filename}`
+      );
+    }
+
+    if (idProofFile) {
+      userUpdateFields.idProof = `http://localhost:3000/uploads/documents/${idProofFile.filename}`;
+    }
+
+    if (Object.keys(userUpdateFields).length > 0) {
+      await user.update(userUpdateFields, { transaction: t });
+    }
+
+    // --- Update Related Models (AstrologyInfo, FamilyInfo, UserCareerInfo) ---
+
+    const safeParseAndUpsert = async (dataString, Model) => {
+      if (dataString === undefined) return;
+
+      const data = JSON.parse(dataString || "{}");
+      if (Object.keys(data).length === 0) return;
+
+      const existingRecord = await Model.findOne({
+        where: { userId },
+        transaction: t,
+      });
+
+      if (existingRecord) {
+        await existingRecord.update(data, { transaction: t });
+      } else {
+        await Model.create({ userId, ...data }, { transaction: t });
+      }
+    };
+
+    await safeParseAndUpsert(astrologyInfo, AstrologyInfo);
+
+    await safeParseAndUpsert(familyInfo, FamilyInfo);
+
+    await safeParseAndUpsert(userCareerInfo, UserCareerInfo);
+
+    await t.commit();
+
+    res.status(200).json({
+      message: "User profile updated successfully.",
+      user: {
+        id: user.id,
+        email: user.email,
+        firstname: user.firstname,
+      },
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error("User update failed:", error);
+
+    const errorMessage =
+      error.name === "SequelizeValidationError"
+        ? error.errors.map((err) => err.message).join(", ")
+        : error.message;
+
+    res.status(400).json({
+      message: "User update failed.",
+      error: errorMessage,
+    });
   }
 }
 
@@ -541,5 +733,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   filterOppositeGenderUsers,
-  getUserByPersonalId
+  getUserByPersonalId,
 };

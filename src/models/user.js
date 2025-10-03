@@ -290,6 +290,16 @@ const User = sequelize.define(
       },
     },
 
+    bodyType: {
+      type: DataTypes.ENUM(
+        "Slim",
+        "Athletic",
+        "Average",
+        "Heavy"
+      ),
+      allowNull: false,
+    },
+
     bloodGroup: {
       type: DataTypes.ENUM("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"),
       allowNull: true,
@@ -314,6 +324,26 @@ const User = sequelize.define(
           msg: "Skin tone must be one of 'Light', 'Medium', 'Olive', or 'Dark'.",
         },
       },
+    },
+
+       
+
+    drinkingHabits: {
+      type: DataTypes.ENUM(
+        "No",
+        "Occassionally",
+        "Yes",
+      ),
+      allowNull: false,
+    },
+
+    smokingHabits: {
+      type: DataTypes.ENUM(
+        "No",
+        "Occasionally",
+        "Yes",
+      ),
+      allowNull: false,
     },
 
     profilePhotos: {

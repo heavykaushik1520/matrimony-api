@@ -3,6 +3,7 @@ const UserCareerInfo = require("./userCareerInfo");
 const FamilyInfo = require("./familyInfo");
 const AstrologyInfo = require("./astrologyInfo");
 const Connection = require("./connection");
+const BasicPreference = require("./basicPreference");
 
 //one-to-one relationship career info
 User.hasOne(UserCareerInfo, {
@@ -57,3 +58,14 @@ Connection.belongsTo(User,{
   foreignKey: 'receiverId',
   as: 'Receiver'
 })
+
+/**-------- association with basic Preference-------- */
+User.hasOne(BasicPreference, {
+  foreignKey: "userId",
+  onDelete: "CASCADE",
+});
+
+BasicPreference.belongsTo(User, {
+  foreignKey: "userId",
+});
+

@@ -91,6 +91,7 @@ const UserCareerInfo = sequelize.define(
               "5 - 7.5 lac",
               "7.5 - 10 lac",
               "Above 10 lac",
+              
             ],
           ],
           msg: "Invalid salary range provided.",
