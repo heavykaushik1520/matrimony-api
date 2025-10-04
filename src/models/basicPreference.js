@@ -260,11 +260,6 @@ const BasicPreference = sequelize.define(
       },
     },
 
-    preferredJobTitle: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-
     preferredJobLocation: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -282,6 +277,11 @@ const BasicPreference = sequelize.define(
       ),
       allowNull: true,
     },
+
+    expectations : {
+      type : DataTypes.TEXT ,
+      allowNull : false
+    }
   },
   {
     tableName: "basicPreference",
