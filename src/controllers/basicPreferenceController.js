@@ -14,6 +14,7 @@ async function createBasicPreference(req, res) {
     preferredSmokingHabits,
     preferredReligion,
     preferredCaste,
+    preferredSubCaste,
     preferredRas,
     preferredGan,
     preferredMangal,
@@ -23,16 +24,32 @@ async function createBasicPreference(req, res) {
     preferredGotra,
     preferredEducation,
     preferredJobSector,
-
     preferredJobLocation,
     preferredAnnualSalary,
+    expectations,
   } = req.body;
+
+  const userId = req.user.userId;
 
   const t = await sequelize.transaction();
 
   try {
+    // Check if user already has preferences
+    const existingPreference = await BasicPreference.findOne({
+      where: { userId },
+      transaction: t
+    });
+
+    if (existingPreference) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "Basic preferences already exist for this user. Use update instead.",
+      });
+    }
+
     const newBasicPreference = await BasicPreference.create(
       {
+        userId,
         preferredAge,
         preferredHeight,
         preferredWeight,
@@ -43,6 +60,7 @@ async function createBasicPreference(req, res) {
         preferredSmokingHabits,
         preferredReligion,
         preferredCaste,
+        preferredSubCaste,
         preferredRas,
         preferredGan,
         preferredMangal,
@@ -54,6 +72,7 @@ async function createBasicPreference(req, res) {
         preferredJobSector,
         preferredJobLocation,
         preferredAnnualSalary,
+        expectations,
       },
       { transaction: t }
     );
@@ -76,7 +95,7 @@ async function createBasicPreference(req, res) {
 }
 
 async function updateBasicPreference(req, res) {
-  const { id } = req.params;
+  const userId = req.user.userId;
   const updateFields = req.body;
 
   if (Object.keys(updateFields).length === 0) {
@@ -89,13 +108,16 @@ async function updateBasicPreference(req, res) {
   const t = await sequelize.transaction();
 
   try {
-    const preference = await BasicPreference.findByPk(id, { transaction: t });
+    const preference = await BasicPreference.findOne({
+      where: { userId },
+      transaction: t
+    });
 
     if (!preference) {
       await t.rollback();
       return res.status(404).json({
         message: "Update failed.",
-        error: `Basic Preference record with ID ${id} not found.`,
+        error: `Basic Preference record not found for this user.`,
       });
     }
 
@@ -106,6 +128,7 @@ async function updateBasicPreference(req, res) {
       message: "Basic Preference Updated Successfully.",
       basicPreference: {
         id: preference.id,
+        userId: preference.userId,
       },
     });
   } catch (error) {
@@ -123,7 +146,35 @@ async function updateBasicPreference(req, res) {
   }
 }
 
+async function getBasicPreference(req, res) {
+  try {
+    const userId = req.user.userId;
+
+    const preference = await BasicPreference.findOne({
+      where: { userId },
+    });
+
+    if (!preference) {
+      return res.status(404).json({
+        message: "Basic preferences not found for this user.",
+      });
+    }
+
+    res.status(200).json({
+      message: "Basic preferences retrieved successfully.",
+      basicPreference: preference,
+    });
+  } catch (error) {
+    console.error("Error fetching basic preferences:", error);
+    res.status(500).json({
+      message: "Failed to fetch basic preferences.",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   createBasicPreference,
   updateBasicPreference,
+  getBasicPreference,
 };

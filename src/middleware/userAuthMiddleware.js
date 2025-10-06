@@ -13,7 +13,11 @@ function isUser(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; 
+    // Normalize payload so downstream code can rely on req.user.userId
+    req.user = {
+      ...decoded,
+      userId: decoded.userId || decoded.id,
+    }; 
     next();
   } catch (error) {
     res.status(403).json({ message: 'Invalid or expired token.' });

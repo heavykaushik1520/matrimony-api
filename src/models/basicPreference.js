@@ -247,13 +247,13 @@ const BasicPreference = sequelize.define(
         "Government",
         "Freelance",
         "Business",
-        "Does't Matter"
+        "Doesn't Matter"
       ),
       allowNull: false,
       validate: {
         isIn: {
           args: [
-            ["Private", "Government", "Freelance", "Business", "Does't Matter"],
+            ["Private", "Government", "Freelance", "Business", "Doesn't Matter"],
           ],
           msg: "Job sector must be 'Private', 'Government', 'Freelance', or 'Business'.",
         },

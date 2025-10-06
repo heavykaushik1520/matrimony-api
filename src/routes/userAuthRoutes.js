@@ -12,7 +12,8 @@ const {
   forgotPassword,
   resetPassword,
   filterOppositeGenderUsers,
-  getUserByPersonalId
+  getUserByPersonalId,
+  updateUser
 } = require("../controllers/userAuthController");
 const { isUser } = require("../middleware/userAuthMiddleware");
 const uploadMiddleware = require("../middleware/upload.js"); 
@@ -28,6 +29,7 @@ router.get("/user/:personalId",isUser , getUserByPersonalId)
 router.get("/users-opposite-gender", isUser , getOppositeGenderUsers);
 router.get("/users-opposite-gender/filter", isUser, filterOppositeGenderUsers);
 
+router.put("/update", isUser, uploadMiddleware, updateUser);
 router.post("/refresh-token", isUser, refreshToken);
 
 router.post("/forgot-password", forgotPassword);

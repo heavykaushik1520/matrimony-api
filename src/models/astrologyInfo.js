@@ -53,15 +53,15 @@ const AstrologyInfo = sequelize.define(
 
     charan: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     nakshatra: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     gotra: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
   },
   {

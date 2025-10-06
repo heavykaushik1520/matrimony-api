@@ -150,7 +150,7 @@ async function userSignup(req, res) {
 
     res.status(201).json({
       message: "User signed up successfully. Welcome to HridaySparshi!",
-      token,
+      // token,
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -570,7 +570,7 @@ async function getUserByPersonalId(req, res) {
 }
 
 async function updateUser(req, res) {
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   const {
     password, // Consider a separate endpoint for password change
@@ -734,4 +734,5 @@ module.exports = {
   resetPassword,
   filterOppositeGenderUsers,
   getUserByPersonalId,
+  updateUser,
 };
