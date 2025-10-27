@@ -184,13 +184,19 @@ async function signinUser(req, res) {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    res.status(200).json({ message: "Sign in successful!", token });
+    const refreshToken = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "2d" }
+    );
+
+    res.status(200).json({ message: "Sign in successful!", accessToken ,refreshToken });
   } catch (error) {
     console.error("Error signing in user:", error);
     res

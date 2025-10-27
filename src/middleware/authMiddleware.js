@@ -13,7 +13,7 @@ function isAdmin(req, res, next) {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET );
     req.admin = decoded;
 
     if (req.admin.role === 'admin' || req.admin.role === 'superadmin') {
