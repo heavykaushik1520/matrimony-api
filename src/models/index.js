@@ -6,6 +6,8 @@ const UserCareerInfo = require('./userCareerInfo');
 const FamilyInfo = require('./familyInfo');
 const AstrologyInfo = require('./astrologyInfo');
 const BasicPreference = require('./basicPreference');
+const Connection = require('./connection');
+const Contact = require('./contact');
 
 // This single line registers all associations
 require('./associations'); 
@@ -17,6 +19,8 @@ const models = {
   FamilyInfo,
   AstrologyInfo,
   BasicPreference,
+  Connection,
+  Contact,
 };
 
 module.exports = {

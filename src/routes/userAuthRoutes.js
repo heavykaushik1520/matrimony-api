@@ -13,9 +13,12 @@ const {
   resetPassword,
   filterOppositeGenderUsers,
   getUserByPersonalId,
-  updateUser
+  getUserById,
+  updateUser,
+  filterOppositeGenderUsersCard
 } = require("../controllers/userAuthController");
 const { isUser } = require("../middleware/userAuthMiddleware");
+const { requireActiveSubscription } = require("../middleware/membershipMiddleware");
 const uploadMiddleware = require("../middleware/upload.js"); 
 const documentUpload = require("../middleware/documentUpload")
 
@@ -25,9 +28,13 @@ router.post("/signin", signinUser);
 router.post("/signout", signoutUser);
 
 router.get("/me", isUser, getCurrentUser);
-router.get("/user/:personalId",isUser , getUserByPersonalId)
-router.get("/users-opposite-gender", isUser , getOppositeGenderUsers);
-router.get("/users-opposite-gender/filter", isUser, filterOppositeGenderUsers);
+router.get("/user/:personalId", isUser, getUserByPersonalId);
+router.get("/user/id/:id", isUser , getUserById);
+
+router.get("/users-opposite-gender", isUser, getOppositeGenderUsers);
+router.get("/users-opposite-gender/filter", isUser, requireActiveSubscription, filterOppositeGenderUsers);
+router.get("/users-opposite-gender-card/filter", isUser, filterOppositeGenderUsersCard);
+
 
 router.put("/update", isUser, uploadMiddleware, updateUser);
 router.post("/refresh-token", isUser, refreshToken);

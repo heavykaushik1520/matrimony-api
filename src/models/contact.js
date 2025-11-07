@@ -16,7 +16,6 @@ const Contact = sequelize.define('Contact', {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
     validate: {
       notEmpty: true,
       isEmail: true,
@@ -30,7 +29,6 @@ const Contact = sequelize.define('Contact', {
   phoneNumber: {
     type: DataTypes.STRING,
     allowNull: true,
-    unique: true,
     validate: {
       isNumeric: true,
       len: [10, 10],

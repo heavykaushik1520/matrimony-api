@@ -196,7 +196,9 @@ async function signinUser(req, res) {
       { expiresIn: "2d" }
     );
 
-    res.status(200).json({ message: "Sign in successful!", accessToken ,refreshToken });
+    res
+      .status(200)
+      .json({ message: "Sign in successful!", accessToken, refreshToken });
   } catch (error) {
     console.error("Error signing in user:", error);
     res
@@ -412,6 +414,92 @@ async function getOppositeGenderUsers(req, res) {
   }
 }
 
+
+async function getOppositeGenderUsersCard(req, res) {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 5;
+    const offset = (page - 1) * limit;
+
+    const currentUserId = req.user.userId;
+    const currentUser = await User.findByPk(currentUserId, {
+      attributes: ["gender"],
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ message: "Current user not found." });
+    }
+
+    const oppositeGender = currentUser.gender === "Male" ? "Female" : "Male";
+
+    const { count, rows } = await User.findAndCountAll({
+      where: {
+        id: {
+          [Op.ne]: currentUserId,
+        },
+        gender: oppositeGender,
+      },
+      attributes: {
+        exclude: [
+          "password",
+          // "firstname",
+          "lastname",
+          "gender",
+          "religion",
+          "caste",
+          "subCaste",
+          "community",
+          "dateOfBirth",
+          "timeOfBirth",
+          "phone",
+          "email",
+          "knownLanguages",
+          "diet",
+          "birthLocation",
+          // "maritalStatus",
+          // "height",
+          "weight",
+          // "bloodGroup",
+          "bodyType",
+          "physicalDisability",
+          "skinTone",
+          "drinkingHabits",
+          "smokingHabits",
+          "hobbies",
+          "termsAccepted",
+          "membership_status",
+          "membership_expiry_date",
+          "membership_plan_name",
+          "razorpay_customer_id",
+          "razorpay_subscription_id",
+        ],
+      },
+      include: [{ model: UserCareerInfo, attributes: ["education"] }],
+
+      exclude: [
+        { model: AstrologyInfo, attributes: [] },
+        { model: FamilyInfo, attributes: [] },
+      ],
+      limit,
+      offset,
+    });
+
+    const totalPages = Math.ceil(count / limit);
+
+    res.status(200).json({
+      totalItems: count,
+      totalPages,
+      currentPage: page,
+      users: rows,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch users.", error: error.message });
+  }
+}
+
 //filter pagination 1 - 10 data
 async function filterOppositeGenderUsers(req, res) {
   const currentUserId = req.user.userId;
@@ -519,18 +607,134 @@ async function filterOppositeGenderUsers(req, res) {
   }
 }
 
+async function filterOppositeGenderUsersCard(req, res) {
+  const currentUserId = req.user.userId;
+
+  let {
+    religion,
+    caste,
+    community,
+    maritalStatus,
+    skinTone,
+    ras,
+    gan,
+    mangal,
+    education,
+    jobSector,
+    jobLocation,
+    annualSalary,
+    limit = 10,
+    page = 1,
+  } = req.query;
+
+  // normalize numeric params
+  limit = parseInt(limit, 10) || 10;
+  page = parseInt(page, 10) || 1;
+  const offset = (page - 1) * limit;
+  const minSalary = annualSalary ? parseFloat(annualSalary) : undefined;
+
+  try {
+    const currentUser = await User.findByPk(currentUserId, {
+      attributes: ["gender"],
+    });
+    if (!currentUser) {
+      return res.status(404).json({ message: "Current user not found." });
+    }
+
+    const oppositeGender = currentUser.gender === "Male" ? "Female" : "Male";
+
+    const userWhere = {
+      id: { [Op.ne]: currentUserId },
+      gender: oppositeGender,
+    };
+    const astrologyWhere = {};
+    const careerWhere = {};
+
+    // Use partial matches (change to exact if desired)
+    if (religion) userWhere.religion = { [Op.like]: `%${religion}%` };
+    if (caste) userWhere.caste = { [Op.like]: `%${caste}%` };
+    if (community) userWhere.community = { [Op.like]: `%${community}%` };
+    if (maritalStatus)
+      userWhere.maritalStatus = { [Op.like]: `%${maritalStatus}%` };
+    if (skinTone) userWhere.skinTone = { [Op.like]: `%${skinTone}%` };
+
+    if (ras) astrologyWhere.ras = { [Op.like]: `%${ras}%` };
+    if (gan) astrologyWhere.gan = { [Op.like]: `%${gan}%` };
+    if (mangal) astrologyWhere.mangal = { [Op.like]: `%${mangal}%` };
+
+    if (education) careerWhere.education = { [Op.like]: `%${education}%` };
+    if (jobSector) careerWhere.jobSector = { [Op.like]: `%${jobSector}%` };
+    if (jobLocation) careerWhere.jobLocation = { [Op.like]: `%${jobLocation}%` };
+    if (minSalary !== undefined) careerWhere.annualSalary = { [Op.gte]: minSalary };
+
+    const results = await User.findAndCountAll({
+      where: userWhere,
+      limit,
+      offset,
+      attributes: {
+        // return a compact "card" set of fields (adjust as needed)
+        include: ["id", "personalId", "firstname", "lastname", "profilePhotos"],
+        exclude: [
+          "password",
+          "idProof",
+          "reset_token",
+          "reset_token_expires",
+          "termsAccepted",
+          "membership_status",
+          "membership_expiry_date",
+          "membership_plan_name",
+          "razorpay_customer_id",
+          "razorpay_subscription_id",
+        ],
+      },
+      include: [
+        {
+          model: AstrologyInfo,
+          required: Object.keys(astrologyWhere).length > 0,
+          where: astrologyWhere,
+          attributes: [], // omit astrology details on card view
+        },
+        {
+          model: UserCareerInfo,
+          required: Object.keys(careerWhere).length > 0,
+          where: careerWhere,
+          attributes: ["education", "jobSector", "jobLocation", "annualSalary"],
+        },
+        {
+          model: FamilyInfo,
+          attributes: [], // omit family details on card view
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      message: "Filtered opposite-gender card results retrieved successfully.",
+      totalItems: results.count,
+      totalPages: Math.ceil(results.count / limit),
+      currentPage: page,
+      users: results.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching filtered users (card):", error);
+    return res.status(500).json({
+      message: "Failed to fetch filtered users (card).",
+      error: error.message,
+    });
+  }
+}
+
 //GET - on the basis of personalId
 async function getUserByPersonalId(req, res) {
   try {
     const { personalId } = req.params;
     if (!personalId) {
       return res.status(400).json({
-        success: "false",
+        success: false,
         message: "Personal Id Required.",
       });
     }
 
-    const user = await user.findOne({
+    const user = await User.findOne({
       where: { personalId },
       attributes: {
         exclude: [
@@ -552,20 +756,141 @@ async function getUserByPersonalId(req, res) {
         { model: FamilyInfo },
         { model: UserCareerInfo },
       ],
-      limit,
-      offset,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User retrieved successfully.",
+      user: user,
     });
   } catch (error) {
-    console.error("Error fetching user:", err);
+    console.error("Error fetching user:", error);
 
     if (
-      err.name === "SequelizeValidationError" ||
-      err.name === "SequelizeDatabaseError"
+      error.name === "SequelizeValidationError" ||
+      error.name === "SequelizeDatabaseError"
     ) {
       return res.status(400).json({
         success: false,
         message: "Invalid request data",
-        error: err.message,
+        error: error.message,
+      });
+    }
+
+    res
+      .status(500)
+      .json({ message: "Failed to fetch user.", error: error.message });
+  }
+}
+
+async function getUserById(req, res) {
+  try {
+    const idParam = req.params.id;
+    if (!idParam) {
+      return res.status(400).json({
+        success: false,
+        message: "User id is required.",
+      });
+    }
+
+    // If you expect numeric IDs sometimes, you can detect and convert here.
+    // For UUID primary keys keep it as string.
+    const id = idParam;
+
+    const user = await User.findByPk(id, {
+      attributes: {
+        exclude: [
+          "idProof",
+          "password",
+          "reset_token",
+          "reset_token_expires",
+          "termsAccepted",
+          "membership_status",
+          "membership_expiry_date",
+          "membership_plan_name",
+          "razorpay_customer_id",
+          "razorpay_subscription_id",
+        ],
+      },
+      include: [
+        { model: AstrologyInfo },
+        { model: FamilyInfo },
+        { model: UserCareerInfo },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    let requesterIsSubscribed = false;
+    try {
+      const requester = await User.findByPk(req.user.userId, {
+        attributes: ["membership_status", "membership_expiry_date", "razorpay_subscription_id"],
+      });
+      if (requester) {
+        const status = (requester.membership_status || "").toLowerCase();
+        const expiry = requester.membership_expiry_date
+          ? new Date(requester.membership_expiry_date)
+          : null;
+        const now = new Date();
+
+        const isExpiryValid = expiry && expiry > now;
+        const hasPaidSubscription = !!requester.razorpay_subscription_id;
+
+        // Allow if membership_status shows active with valid expiry OR user has a paid subscription that is not expired
+        requesterIsSubscribed =
+          (status === "active" && isExpiryValid) || (hasPaidSubscription && isExpiryValid);
+      }
+    } catch (e) {
+      // treat as not subscribed if check fails
+      requesterIsSubscribed = false;
+    }
+
+    const userData = user.get({ plain: true });
+
+    // mask by default; if requesterIsSubscribed === true, do NOT mask
+    if (!requesterIsSubscribed) {
+      if (userData.phone) {
+        userData.phone = userData.phone.replace(/(\d{2})\d{6}(\d{2})/, "$1***$2");
+      }
+
+      if (userData.email) {
+        const [name, domain] = userData.email.split("@");
+        const maskedName =
+          name.length > 2
+            ? name[0] + "*".repeat(name.length - 2) + name.slice(-1)
+            : name[0] + "*";
+        userData.email = `${maskedName}@${domain}`;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User retrieved successfully.",
+      user: userData,
+    });
+  } catch (error) {
+    console.error("Error fetching user by id:", error);
+
+    if (
+      error.name === "SequelizeValidationError" ||
+      error.name === "SequelizeDatabaseError"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request data",
+        error: error.message,
       });
     }
 
@@ -729,16 +1054,21 @@ async function updateUser(req, res) {
   }
 }
 
+
+
 module.exports = {
   userSignup,
   signinUser,
   signoutUser,
   getCurrentUser,
   getOppositeGenderUsers,
+  getOppositeGenderUsersCard,
   refreshToken,
   forgotPassword,
   resetPassword,
   filterOppositeGenderUsers,
+  filterOppositeGenderUsersCard ,
   getUserByPersonalId,
+  getUserById,
   updateUser,
 };

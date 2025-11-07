@@ -16,6 +16,7 @@ const userAuthRoutes = require('./routes/userAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const basicPreferenceRoutes = require('./routes/basicPreferenceRoutes');
+const membershipRoutes = require('./routes/membershipRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -58,6 +59,7 @@ app.use('/api/user/auth', userAuthRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/user/preferences', basicPreferenceRoutes);
+app.use('/api/membership', membershipRoutes);
 
 app.get('/', (req, res) => {
   res.send('HridaySparshi');
