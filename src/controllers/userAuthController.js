@@ -794,14 +794,8 @@ async function getUserById(req, res) {
   try {
     const idParam = req.params.id;
     if (!idParam) {
-      return res.status(400).json({
-        success: false,
-        message: "User id is required.",
-      });
+      return res.status(400).json({ success: false, message: "User id is required." });
     }
-
-    // If you expect numeric IDs sometimes, you can detect and convert here.
-    // For UUID primary keys keep it as string.
     const id = idParam;
 
     const user = await User.findByPk(id, {
@@ -812,11 +806,12 @@ async function getUserById(req, res) {
           "reset_token",
           "reset_token_expires",
           "termsAccepted",
-          "membership_status",
-          "membership_expiry_date",
-          "membership_plan_name",
-          "razorpay_customer_id",
-          "razorpay_subscription_id",
+          // removed membership/subscription fields if you later drop them from DB
+          // "membership_status",
+          // "membership_expiry_date",
+          // "membership_plan_name",
+          // "razorpay_customer_id",
+          // "razorpay_subscription_id",
         ],
       },
       include: [
@@ -826,60 +821,19 @@ async function getUserById(req, res) {
       ],
     });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found.",
-      });
-    }
-
-    let requesterIsSubscribed = false;
-    try {
-      const requester = await User.findByPk(req.user.userId, {
-        attributes: ["membership_status", "membership_expiry_date", "razorpay_subscription_id"],
-      });
-      if (requester) {
-        const status = (requester.membership_status || "").toLowerCase();
-        const expiry = requester.membership_expiry_date
-          ? new Date(requester.membership_expiry_date)
-          : null;
-        const now = new Date();
-
-        const isExpiryValid = expiry && expiry > now;
-        const hasPaidSubscription = !!requester.razorpay_subscription_id;
-
-        // Allow if membership_status shows active with valid expiry OR user has a paid subscription that is not expired
-        requesterIsSubscribed =
-          (status === "active" && isExpiryValid) || (hasPaidSubscription && isExpiryValid);
-      }
-    } catch (e) {
-      // treat as not subscribed if check fails
-      requesterIsSubscribed = false;
-    }
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
 
     const userData = user.get({ plain: true });
 
-    // mask by default; if requesterIsSubscribed === true, do NOT mask
-    if (!requesterIsSubscribed) {
-      if (userData.phone) {
-        userData.phone = userData.phone.replace(/(\d{2})\d{6}(\d{2})/, "$1***$2");
-      }
-
-      if (userData.email) {
-        const [name, domain] = userData.email.split("@");
-        const maskedName =
-          name.length > 2
-            ? name[0] + "*".repeat(name.length - 2) + name.slice(-1)
-            : name[0] + "*";
-        userData.email = `${maskedName}@${domain}`;
-      }
+    // Default behavior: mask contact data for everyone (remove this block if you want full data)
+    if (userData.phone) userData.phone = userData.phone.replace(/(\d{2})\d{6}(\d{2})/, "$1***$2");
+    if (userData.email) {
+      const [name, domain] = userData.email.split("@");
+      const maskedName = name.length > 2 ? name[0] + "*".repeat(name.length - 2) + name.slice(-1) : name[0] + "*";
+      userData.email = `${maskedName}@${domain}`;
     }
 
-    res.status(200).json({
-      success: true,
-      message: "User retrieved successfully.",
-      user: userData,
-    });
+    return res.status(200).json({ success: true, message: "User retrieved successfully.", user: userData });
   } catch (error) {
     console.error("Error fetching user by id:", error);
 

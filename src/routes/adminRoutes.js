@@ -9,10 +9,10 @@ const {
   deleteAdmin,
 } = require('../controllers/adminController');
 
-router.post('/admins', createAdmin);        // Create a new admin
-router.get('/admins', getAllAdmins);         // Get all admins
-router.get('/admins/:id', getAdminById);     // Get a specific admin by ID
-router.put('/admins/:id', updateAdmin);      // Update an admin by ID
-router.delete('/admins/:id', deleteAdmin);   // Delete an admin by ID
+router.post('/create', createAdmin);        // Create a new admin
+router.get('/get', getAllAdmins);         // Get all admins
+router.get('/:id', getAdminById);     // Get a specific admin by ID
+router.put('/:id', updateAdmin);      // Update an admin by ID
+router.delete('/:id', deleteAdmin);   // Delete an admin by ID
 
 module.exports = router;

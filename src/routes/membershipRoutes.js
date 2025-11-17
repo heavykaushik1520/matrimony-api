@@ -1,32 +1,16 @@
 // src/routes/membershipRoutes.js
-
 const express = require("express");
 const router = express.Router();
-const {
-  createMembershipOrder,
-  createSubscriptionOrder,
-  verifyMembershipPayment,
-  verifySubscriptionPayment,
-  getMembershipStatus,
-} = require("../controllers/membershipController");
+const { createOrderForPlan, verifyPlanPayment, getMembershipStatus } = require("../controllers/membershipController");
 const { isUser } = require("../middleware/userAuthMiddleware");
 
-/**
- * Membership Routes
- */
-router.post("/order/membership", isUser, createMembershipOrder);
-router.post("/verify/membership", isUser, verifyMembershipPayment);
+// Create order for Silver / Gold
+router.post("/create-order", isUser, createOrderForPlan);
 
-/**
- * Subscription Routes
- */
-router.post("/order/subscription", isUser, createSubscriptionOrder);
-router.post("/verify/subscription", isUser, verifySubscriptionPayment);
+// Verify payment and activate plan
+router.post("/verify", isUser, verifyPlanPayment);
 
-/**
- * Get Membership Status
- */
+// Get status
 router.get("/status", isUser, getMembershipStatus);
 
 module.exports = router;
-

@@ -1,218 +1,123 @@
+// src/controllers/membershipController.js
 const { User } = require("../models");
 const razorpay = require("../config/razorpay");
 const crypto = require("crypto");
 
-/**
- * Create Razorpay Order for Membership (Rs. 499 for 1 year)
- */
-async function createMembershipOrder(req, res) {
+
+async function createOrderForPlan(req, res) {
   try {
-    const userId = req.user.userId;
+    const userId = req.user && req.user.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    // Check if user already has active membership
+    const { plan } = req.body;
+    if (!plan || !["silver", "gold"].includes(plan)) {
+      return res.status(400).json({ message: "Invalid plan. Use 'silver' or 'gold'." });
+    }
+
     const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
+    if (!user) return res.status(404).json({ message: "User not found." });
 
-    if (user.membership_status === "active") {
-      return res.status(400).json({
-        message: "You already have an active membership.",
-      });
-    }
+    const plans = {
+      silver: { name: "Silver", amountPaise: 999 * 100, months: 1 },
+      gold: { name: "Gold", amountPaise: 1999 * 100, months: 3 },
+    };
+    const chosen = plans[plan];
 
-    // Create Razorpay order
+    // Create short receipt for Razorpay (<=40 chars)
     const cleanUserId = String(userId).replace(/[^a-zA-Z0-9]/g, "");
-    const baseReceipt = `mem_${cleanUserId}_${Date.now()}`;
-    const receipt = baseReceipt.slice(0, 40); // Razorpay requires receipt length <= 40
+    const receipt = `plan_${plan}_${cleanUserId}_${Date.now()}`.slice(0, 40);
+
     const options = {
-      amount: 49900, // Rs. 499 in paise
+      amount: chosen.amountPaise,
       currency: "INR",
       receipt,
       notes: {
-        type: "membership",
+        type: "subscription_plan",
+        plan: chosen.name,
+        months: String(chosen.months),
         user_id: String(userId),
-        duration: "1_year",
       },
     };
 
     const order = await razorpay.orders.create(options);
 
-    // Store the order in database temporarily or return it
-    res.status(200).json({
-      message: "Membership order created successfully.",
+    return res.status(200).json({
+      message: `${chosen.name} order created.`,
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
       key_id: process.env.RAZORPAY_KEY_ID,
-      user_id: userId,
+      plan: chosen.name,
+      months: chosen.months,
     });
   } catch (error) {
-    console.error("Error creating membership order:", error);
-    
-    // Enhanced error logging for Razorpay errors
-    if (error.error) {
-      console.error("Razorpay Error Details:", {
-        statusCode: error.statusCode,
-        error: error.error,
-        description: error.error.description,
-        code: error.error.code,
-      });
-    }
-    
-    // Check if it's an authentication error
-    if (error.statusCode === 401 || (error.error && error.error.code === 'BAD_REQUEST_ERROR')) {
-      console.error("Razorpay Authentication Failed!");
-      console.error("Please verify that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are correctly set in your environment variables.");
-      console.error("Current RAZORPAY_KEY_ID:", process.env.RAZORPAY_KEY_ID ? `${process.env.RAZORPAY_KEY_ID.substring(0, 10)}...` : "NOT SET");
-      console.error("Current RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "SET (hidden)" : "NOT SET");
-      
-      return res.status(500).json({
-        message: "Failed to create membership order.",
-        error: "Razorpay authentication failed. Please check server configuration.",
-        details: error.error ? {
-          description: error.error.description,
-          code: error.error.code,
-        } : error.message,
-      });
-    }
-    
-    res.status(500).json({
-      message: "Failed to create membership order.",
-      error: error.error ? error.error.description : error.message,
-      details: error.error ? error.error : undefined,
+    console.error("Error creating plan order:", error);
+    const errMsg = error && error.error && (error.error.description || error.error.reason) || error.message;
+    return res.status(500).json({
+      message: "Failed to create plan order.",
+      error: errMsg,
     });
   }
 }
 
-/**
- * Create Razorpay Order for Subscription (Rs. 99 for 2 days)
- */
-async function createSubscriptionOrder(req, res) {
+
+async function verifyPlanPayment(req, res) {
   try {
-    const userId = req.user.userId;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const userId = req.user && req.user.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ message: "Missing payment verification fields." });
     }
 
-    // Check if user has active membership
-    if (user.membership_status !== "active") {
-      return res.status(403).json({
-        message: "You need to purchase membership first.",
-      });
-    }
-
-    // Check if subscription is already active
-    if (user.membership_status === "active" && user.razorpay_subscription_id) {
-      return res.status(400).json({
-        message: "You already have an active subscription.",
-      });
-    }
-
-    // Create Razorpay order
-    const cleanUserId = String(userId).replace(/[^a-zA-Z0-9]/g, "");
-    const baseReceipt = `sub_${cleanUserId}_${Date.now()}`;
-    const receipt = baseReceipt.slice(0, 40); // Razorpay requires receipt length <= 40
-    const options = {
-      amount: 9900, // Rs. 99 in paise
-      currency: "INR",
-      receipt,
-      notes: {
-        type: "subscription",
-        user_id: String(userId),
-        duration: "2_days",
-      },
-    };
-
-    const order = await razorpay.orders.create(options);
-
-    res.status(200).json({
-      message: "Subscription order created successfully.",
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      key_id: process.env.RAZORPAY_KEY_ID,
-      user_id: userId,
-    });
-  } catch (error) {
-    console.error("Error creating subscription order:", error);
-    
-    // Enhanced error logging for Razorpay errors
-    if (error.error) {
-      console.error("Razorpay Error Details:", {
-        statusCode: error.statusCode,
-        error: error.error,
-        description: error.error.description,
-        code: error.error.code,
-      });
-    }
-    
-    // Check if it's an authentication error
-    if (error.statusCode === 401 || (error.error && error.error.code === 'BAD_REQUEST_ERROR')) {
-      console.error("Razorpay Authentication Failed!");
-      console.error("Please verify that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are correctly set in your environment variables.");
-      console.error("Current RAZORPAY_KEY_ID:", process.env.RAZORPAY_KEY_ID ? `${process.env.RAZORPAY_KEY_ID.substring(0, 10)}...` : "NOT SET");
-      console.error("Current RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "SET (hidden)" : "NOT SET");
-      
-      return res.status(500).json({
-        message: "Failed to create subscription order.",
-        error: "Razorpay authentication failed. Please check server configuration.",
-        details: error.error ? {
-          description: error.error.description,
-          code: error.error.code,
-        } : error.message,
-      });
-    }
-    
-    res.status(500).json({
-      message: "Failed to create subscription order.",
-      error: error.error ? error.error.description : error.message,
-      details: error.error ? error.error : undefined,
-    });
-  }
-}
-
-/**
- * Verify Payment for Membership
- */
-async function verifyMembershipPayment(req, res) {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-    req.body;
-  const userId = req.user.userId;
-
-  try {
     // Verify signature
     const text = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const signature = crypto
+    const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(text)
       .digest("hex");
 
-    if (signature !== razorpay_signature) {
+    if (expectedSignature !== razorpay_signature) {
       return res.status(400).json({ message: "Invalid signature." });
     }
 
-    // Get user and update membership
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
+    // Try fetch order to get notes (plan/months) — fallback to 1 month if not available
+    let order;
+    try {
+      order = await razorpay.orders.fetch(razorpay_order_id);
+    } catch (e) {
+      console.warn("Could not fetch order from Razorpay:", e && e.message);
     }
 
-    // Update user's membership status
-    const expiryDate = new Date();
-    expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year from now
+    let months = 1;
+    let planName = "Silver";
+    if (order && order.notes) {
+      months = parseInt(order.notes.months || "1", 10) || 1;
+      planName = order.notes.plan || planName;
+    }
+
+    // Update user membership expiry (extend if still active)
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    const now = new Date();
+    const currentExpiry = user.membership_expiry_date ? new Date(user.membership_expiry_date) : null;
+    const startDate = currentExpiry && currentExpiry > now ? currentExpiry : now;
+
+    const expiry = new Date(startDate);
+    expiry.setMonth(expiry.getMonth() + months);
 
     user.membership_status = "active";
-    user.membership_expiry_date = expiryDate;
-    user.membership_plan_name = "Annual Membership";
-    user.razorpay_customer_id = razorpay_payment_id;
+    user.membership_expiry_date = expiry;
+    user.membership_plan_name = planName;
+    // Save razorpay payment id for traceability (you used razorpay_subscription_id earlier; keep compatibility)
+    user.razorpay_subscription_id = razorpay_payment_id;
 
     await user.save();
 
-    res.status(200).json({
-      message: "Membership activated successfully.",
+    return res.status(200).json({
+      message: "Subscription activated successfully.",
       membership: {
         status: user.membership_status,
         expiry_date: user.membership_expiry_date,
@@ -220,131 +125,49 @@ async function verifyMembershipPayment(req, res) {
       },
     });
   } catch (error) {
-    console.error("Error verifying membership payment:", error);
-    res.status(500).json({
-      message: "Failed to verify membership payment.",
-      error: error.message,
+    console.error("Error verifying plan payment:", error);
+    const errMsg = error && error.error && (error.error.description || error.error.reason) || error.message;
+    return res.status(500).json({
+      message: "Failed to verify payment.",
+      error: errMsg,
     });
   }
 }
 
-/**
- * Verify Payment for Subscription
- */
-async function verifySubscriptionPayment(req, res) {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-    req.body;
-  const userId = req.user.userId;
-
-  try {
-    // Verify signature
-    const text = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const signature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(text)
-      .digest("hex");
-
-    if (signature !== razorpay_signature) {
-      return res.status(400).json({ message: "Invalid signature." });
-    }
-
-    // Get user and update subscription
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    // Check membership is active
-    if (user.membership_status !== "active") {
-      return res.status(403).json({
-        message: "You need an active membership to subscribe.",
-      });
-    }
-
-    // Update user's subscription
-    const subscriptionExpiry = new Date();
-    subscriptionExpiry.setDate(subscriptionExpiry.getDate() + 2); // 2 days from now
-
-    user.razorpay_subscription_id = razorpay_payment_id;
-
-    await user.save();
-
-    res.status(200).json({
-      message: "Subscription activated successfully.",
-      subscription: {
-        status: "active",
-        expires_in: "2 days",
-        payment_id: razorpay_payment_id,
-      },
-    });
-  } catch (error) {
-    console.error("Error verifying subscription payment:", error);
-    res.status(500).json({
-      message: "Failed to verify subscription payment.",
-      error: error.message,
-    });
-  }
-}
-
-/**
- * Get User's Membership Status
- */
 async function getMembershipStatus(req, res) {
   try {
-    const userId = req.user.userId;
+    const userId = req.user && req.user.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const user = await User.findByPk(userId, {
-      attributes: [
-        "id",
-        "membership_status",
-        "membership_expiry_date",
-        "membership_plan_name",
-        "razorpay_subscription_id",
-      ],
+      attributes: ["id", "membership_status", "membership_expiry_date", "membership_plan_name", "razorpay_subscription_id"],
     });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
+    if (!user) return res.status(404).json({ message: "User not found." });
 
     const isMembershipActive = checkMembershipActive(user);
-    const hasActiveSubscription = !!user.razorpay_subscription_id;
-
     res.status(200).json({
       membership_status: user.membership_status,
       membership_expiry_date: user.membership_expiry_date,
       membership_plan_name: user.membership_plan_name,
       is_membership_active: isMembershipActive,
-      has_active_subscription: hasActiveSubscription,
-      can_view_profiles: isMembershipActive && hasActiveSubscription,
     });
-  } catch (error) {
-    console.error("Error fetching membership status:", error);
-    res.status(500).json({
-      message: "Failed to fetch membership status.",
-      error: error.message,
-    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch membership status.", error: err.message });
   }
 }
 
-/**
- * Helper function to check if membership is active
- */
-function checkMembershipActive(user) {
-  if (!user.membership_expiry_date) return false;
 
+function checkMembershipActive(user) {
+  if (!user || !user.membership_expiry_date) return false;
   const now = new Date();
   const expiryDate = new Date(user.membership_expiry_date);
-
   return expiryDate > now && user.membership_status === "active";
 }
 
 module.exports = {
-  createMembershipOrder,
-  createSubscriptionOrder,
-  verifyMembershipPayment,
-  verifySubscriptionPayment,
+  createOrderForPlan,
+  verifyPlanPayment,
   getMembershipStatus,
   checkMembershipActive,
 };
-

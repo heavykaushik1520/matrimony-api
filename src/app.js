@@ -17,6 +17,7 @@ const userRoutes = require('./routes/userRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const basicPreferenceRoutes = require('./routes/basicPreferenceRoutes');
 const membershipRoutes = require('./routes/membershipRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -60,6 +61,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/user/preferences', basicPreferenceRoutes);
 app.use('/api/membership', membershipRoutes);
+app.use('/api/chats', chatRoutes);
 
 app.get('/', (req, res) => {
   res.send('HridaySparshi');
@@ -71,21 +73,5 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong!');
 });
 
-async function startServer() {
-  try {
-    await testConnection();
-    // await sequelize.sync({ alter: true });
-    console.log('Database synchronized successfully.');
-    
-    app.listen(port, () => {
-      console.log(`Server is running on http://localhost:${port}.`);
-    });
-  } catch (error) {
-    console.error('Failed to start the server:', error);
-    process.exit(1); 
-  }
-}
-
-startServer();
-
+// startServer moved to src/index.js — keep app exported for reuse
 module.exports = app;
