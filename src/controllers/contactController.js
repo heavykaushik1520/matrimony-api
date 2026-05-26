@@ -1,122 +1,33 @@
-const { Contact } = require("../models");
-const { Op } = require("sequelize");
-const { sequelize } = require("../config/db");
+const sendMail = require("../utils/sendMail");
 
-async function createContact(req, res) {
-  const { name, email, phoneNumber, subject, message } = req.body;
+exports.submitContactForm = async (req, res) => {
+    const { name, email, phoneNumber, subject, message } = req.body;
 
-  const t = await sequelize.transaction();
+    if (!name || !email || !phoneNumber || !subject || !message) {
+        return res.status(400).json({
+            success: false,
+            message: "All fields are required.",
+        });
+    }
 
-  try {
-    const newContact = await Contact.create(
-      {
+    const response = await sendMail({
         name,
         email,
         phoneNumber,
         subject,
         message,
-      },
-      { transaction: t }
-    );
-
-    await t.commit();
-
-    res.status(201).json({
-      message: "New Message Via Contact",
-      contact: {
-        id: newContact.id,
-        name: newContact.name,
-        email: newContact.email,
-        phoneNumber: newContact.phoneNumber,
-        subject: newContact.subject,
-        message: newContact.message,
-      },
-    });
-  } catch (error) {
-    await t.rollback();
-    console.error("Contact Sending Failed :", error);
-    res.status(400).json({
-      message: "Contact Sending Failed.",
-      error: error.message,
-    });
-  }
-}
-
-async function getAllContacts(req, res) {
-  try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 5;
-    const offset = (page - 1) * limit;
-
-    const { count, rows } = await Contact.findAndCountAll({
-      limit,
-      offset,
-      order: [["createdAt", "DESC"]],
     });
 
-    const totalPages = Math.ceil(count / limit);
-
-    res.status(200).json({
-      totalItems: count,
-      totalPages,
-      currentPage: page,
-      contacts: rows,
-    });
-  } catch (error) {
-    console.error("Error fetching contacts:", error);
-    res
-      .status(500)
-      .json({ message: "Failed to fetch contacts.", error: error.message });
-  }
-}
-
-async function getContactById(req, res) {
-  try {
-    const { id } = req.params;
-
-    const contact = await Contact.findByPk(id);
-
-    if (!contact) {
-      return res.status(404).json({ message: "Contact message not found." });
+    if (response.success) {
+        return res.status(200).json({
+            success: true,
+            message: "Your message has been sent successfully.",
+        });
+    } else {
+        return res.status(500).json({
+            success: false,
+            message: "Error sending message.",
+            error: response.error,
+        });
     }
-
-    res.status(200).json({ contact });
-  } catch (error) {
-    console.error("Error fetching contact by ID:", error);
-    res.status(500).json({
-      message: "Failed to fetch contact.",
-      error: error.message,
-    });
-  }
-}
-
-async function deleteContactById(req, res) {
-  try {
-    const { id } = req.params;
-
-    const deletedRows = await Contact.destroy({
-      where: { id },
-    });
-
-    if (deletedRows === 0) {
-      return res
-        .status(404)
-        .json({ message: "Contact message not found to delete." });
-    }
-
-    res.status(204).send();
-  } catch (error) {
-    console.error("Error deleting contact by ID:", error);
-    res.status(500).json({
-      message: "Failed to delete contact.",
-      error: error.message,
-    });
-  }
-}
-
-module.exports = {
-  createContact,
-  getAllContacts,
-  getContactById,
-  deleteContactById
 };
